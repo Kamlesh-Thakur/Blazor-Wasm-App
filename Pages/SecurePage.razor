@@ -1,0 +1,27 @@
+﻿@page "/secure-page"
+@inject AuthenticationStateProvider AuthStateProvider
+
+<AuthorizeView>
+    <Authorized>
+        <h3>Secure Page</h3>
+        <p>Welcome, @userName!</p>
+        <p>You are authorized to view this page.</p>
+    </Authorized>
+    <NotAuthorized>
+        <h3>Unauthorized Access</h3>
+        <p>You do not have permission to view this page.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private string? userName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        
+        userName = authState == null 
+            ? null 
+            : authState.User.Identity.IsAuthenticated ? authState.User.Identity.Name : null;
+    }
+}

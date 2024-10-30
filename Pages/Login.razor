@@ -1,0 +1,104 @@
+﻿@page "/"
+@using BlazorWasmApp.Handlers
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Log in</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <div class="row">
+            <div class="col-md-4">
+                <section>
+                    <button type="button" @onclick="Logout" class="btn btn-lg btn-primary">Logout</button>
+                </section>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <h1>Log in</h1>
+        <div class="row">
+            <div class="col-md-4">
+                <section>
+                    <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login" Context="LoginContext">
+                        <DataAnnotationsValidator />
+                        <h2>Use a local account to log in.</h2>
+                        <hr />
+                        <ValidationSummary class="text-danger" role="alert" />
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
+                            <label for="email" class="form-label">Email</label>
+                            <ValidationMessage For="() => Input.Email" class="text-danger" />
+                        </div>
+                        <div class="form-floating mb-3">
+                            <InputText type="password" @bind-Value="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
+                            <label for="password" class="form-label">Password</label>
+                            <ValidationMessage For="() => Input.Password" class="text-danger" />
+                        </div>
+
+                        <div>
+                            <button type="submit" class="w-100 btn btn-lg btn-primary">Log in</button>
+                        </div>
+                    </EditForm>
+                </section>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private InputModel Input { get; set; } = new();
+
+    private string? errorMessage;
+    private string? userName;
+    private string token = string.Empty;
+
+    public async Task LoginUser()
+    {
+        try
+        {
+            var apiAuthStateProvider = (ApiAuthenticationStateProvider)AuthStateProvider;
+
+            var response = await Http.PostAsJsonAsync("api/auth/login", Input);
+            if (response.IsSuccessStatusCode)
+            {
+                // Handle successful login, e.g., navigate to another page or save token
+                token = await response.Content.ReadAsStringAsync();
+                userName = Input.Email; // Extract username or get from response
+                await apiAuthStateProvider.MarkUserAsAuthenticated(token);
+
+                Navigation.NavigateTo("/secure-page");
+            }
+            else
+            {
+                errorMessage = "Error: Invalid login attempt.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "An error occurred during login: " + ex.Message;
+        }
+    }
+
+    private async Task Logout()
+    {
+        var apiAuthStateProvider = (ApiAuthenticationStateProvider)AuthStateProvider;
+        await apiAuthStateProvider.MarkUserAsLoggedOut();
+        Navigation.NavigateTo("/");
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+    }
+}
